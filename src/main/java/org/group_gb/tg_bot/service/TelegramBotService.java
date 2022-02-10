@@ -1,0 +1,135 @@
+package org.group_gb.tg_bot.service;
+
+
+import org.group_gb.tg_bot.botState.ChatState;
+import org.group_gb.tg_bot.botState.ChatStateData;
+import org.group_gb.tg_bot.yandexAPI.YandexAPIService;
+import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Location;
+import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class TelegramBotService {
+
+     private final ChatStateData chatStateData;
+     private final YandexAPIService yandexAPIService;
+
+
+    public TelegramBotService(ChatStateData chatStateData, YandexAPIService yandexAPIService) {
+        this.chatStateData = chatStateData;
+        this.yandexAPIService = yandexAPIService;
+    }
+
+    public SendMessage handleUpdate(Update update){
+
+        SendMessage message = new SendMessage();
+        Long chatId = update.getMessage().getChatId();
+        message.setChatId(chatId.toString());
+
+        //Проверим текущий статус чата
+        ChatState chatState = getChatState(chatId);
+
+        if(chatState == ChatState.WAITING_COMMAND){
+            if (update.hasMessage() && update.getMessage().hasText()) {
+
+                String messageText = update.getMessage().getText();
+
+                //Проверим новое сообщение, установим соответствующий статус
+                if (messageText.equals("/start")) {
+                    chatState = ChatState.WAITING_COMMAND;
+                }else if (messageText.equals("Будет ли сегодня дождь?")) {
+                    chatState = ChatState.WAITING_GEOMARK;
+                }
+
+                chatStateData.setChatState(chatId,chatState);
+
+                //Сформируем ответ в зависимости от состояния чата
+                if(chatState == ChatState.WAITING_COMMAND){
+                    createResponseWAITING_COMMAND(message);
+                }else if(chatState == ChatState.WAITING_GEOMARK){
+                    createResponseWAITING_GEOMARK(message);
+                }
+
+            }else{
+                createResponseWAITING_COMMAND(message);
+            }
+        }else if(chatState == ChatState.WAITING_GEOMARK) {
+            if (update.hasMessage() && update.getMessage().hasLocation()) {
+                Location location = update.getMessage().getLocation();
+                Double longitude = location.getLongitude();
+                Double latitude = location.getLatitude();
+                createResponseForcast(message,longitude, latitude);
+
+                chatStateData.setChatState(chatId,ChatState.WAITING_COMMAND);
+            }else{
+                createResponseWAITING_GEOMARK(message);
+            }
+
+        }
+
+        return message;
+
+    }
+
+    private void createResponseForcast(SendMessage message, Double lon, Double lat) {
+
+        //Долгота: 139.73967 Широта: 35.660577
+        //message.setText("Долгота: " + longitude.toString() + " Широта : "+latitude.toString());
+        message.setText(yandexAPIService.getForcast(lat,lon));
+        setMainMenu(message);
+    }
+
+    private void createResponseWAITING_COMMAND(SendMessage message){
+
+        message.setText("Ожидаю команды");
+        setMainMenu(message);
+
+    }
+
+    private void createResponseWAITING_GEOMARK(SendMessage message){
+
+        message.setText("Отправьте, пожалуйста, геометку");
+
+    }
+
+
+    private ChatState getChatState(Long chatId){
+
+        ChatState chatState = chatStateData.getChatState(chatId);
+        if (chatState == null) {
+            chatState = ChatState.WAITING_COMMAND;
+            chatStateData.setChatState(chatId,chatState);
+        }
+
+        return chatState;
+
+    }
+
+    private void setMainMenu( SendMessage message){
+
+        //Установим keyboard
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        replyKeyboardMarkup.setSelective(true);
+        replyKeyboardMarkup.setResizeKeyboard(true);
+        //replyKeyboardMarkup.setOneTimeKeyboard(false);
+        replyKeyboardMarkup.setOneTimeKeyboard(true);
+
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row1 = new KeyboardRow();
+        row1.add(new KeyboardButton("Будет ли сегодня дождь?"));
+        keyboard.add(row1);
+        replyKeyboardMarkup.setKeyboard(keyboard);
+
+        message.setReplyMarkup(replyKeyboardMarkup);
+
+    }
+
+}
