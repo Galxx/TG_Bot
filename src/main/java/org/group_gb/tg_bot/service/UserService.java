@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.objects.Location;
 
 import java.util.List;
 
@@ -23,6 +24,13 @@ public class UserService {
     public List<User> findAllUsers() {
         return userRepository.findAll();
     }
+
+    public User returnCurrentUserWithLocationWithoutSavingToDB(User user, Location location) {
+        user.setLongitude(location.getLongitude());
+        user.setLatitude(location.getLatitude());
+        return user;
+    }
+
 
 
 }

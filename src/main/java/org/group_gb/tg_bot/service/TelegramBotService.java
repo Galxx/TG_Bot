@@ -70,13 +70,10 @@ public class TelegramBotService {
         } else if (chatState == ChatState.WAITING_GEOMARK) {
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                Double longitude = location.getLongitude();
-                Double latitude = location.getLatitude();
-                createResponseForcast(message, longitude, latitude);
+                createResponseForcast(message, location);
 
-
-                user.setLatitude(latitude);
-                user.setLongitude(longitude);
+                user.setLatitude(location.getLatitude());
+                user.setLongitude(location.getLongitude());
                 userService.save(user);
 
                 chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
@@ -90,10 +87,12 @@ public class TelegramBotService {
 
     }
 
-    private void createResponseForcast(SendMessage message, Double lon, Double lat) {
+    private void createResponseForcast(SendMessage message, Location location) {
 
         //Долгота: 139.73967 Широта: 35.660577
         //message.setText("Долгота: " + longitude.toString() + " Широта : "+latitude.toString());
+        Double lat = location.getLatitude();
+        Double lon = location.getLongitude();
         message.setText(yandexAPIService.getForcast(lat, lon));
         setMainMenu(message);
     }
