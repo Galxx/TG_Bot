@@ -25,11 +25,6 @@ public class UserService {
         return userRepository.findAll();
     }
 
-    public User returnCurrentUserWithLocationWithoutSavingToDB(User user, Location location) {
-        user.setLongitude(location.getLongitude());
-        user.setLatitude(location.getLatitude());
-        return user;
-    }
 
 
 
