@@ -2,13 +2,13 @@ package org.group_gb.tg_bot.botState;
 
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ChatStateDataImpl implements ChatStateData{
 
-    private Map<Long, ChatState> chatsStates = new HashMap<>();
+    private Map<Long, ChatState> chatsStates =  new ConcurrentHashMap<>();
 
 
     @Override
@@ -18,8 +18,6 @@ public class ChatStateDataImpl implements ChatStateData{
 
     @Override
     public ChatState getChatState(Long chatId) {
-        ChatState chatState = chatsStates.get(chatId);
-
-        return chatState;
+        return chatsStates.get(chatId);
     }
 }

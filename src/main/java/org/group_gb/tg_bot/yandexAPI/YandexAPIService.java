@@ -11,19 +11,19 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Service
 public class YandexAPIService {
 
-    private final WebClient webClient;
-
     public YandexAPIService() {
-        this.webClient =  WebClient
-                .builder()
-                .baseUrl("https://api.weather.yandex.ru/v2")
-                .build();;
+
     }
 
     @Value("${yandex.pogoda.token}")
     String token;
 
     public String getForcast(Double lat, Double lon) {
+
+        WebClient  webClient =  WebClient
+                .builder()
+                .baseUrl("https://api.weather.yandex.ru/v2")
+                .build();
 
         String forcastText = "Прогноз погоды по часам:\n";
 
