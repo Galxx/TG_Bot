@@ -5,7 +5,9 @@ import org.group_gb.tg_bot.botState.ChatState;
 import org.group_gb.tg_bot.botState.ChatStateData;
 import org.group_gb.tg_bot.models.User;
 import org.group_gb.tg_bot.yandexAPI.YandexAPIService;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Location;
@@ -20,6 +22,8 @@ import java.util.List;
 @Service
 public class TelegramBotService {
 
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(TelegramBotService.class);
+
     @Autowired
     private UserService userService;
 
@@ -32,13 +36,17 @@ public class TelegramBotService {
         this.yandexAPIService = yandexAPIService;
     }
 
+
     public SendMessage handleUpdate(Update update) {
+
 
         SendMessage message = new SendMessage();
         Long chatId = update.getMessage().getChatId();
         User user = new User();
         user.setChatId(chatId);
         message.setChatId(chatId.toString());
+
+        log.info(chatId.toString());
 
         //Проверим текущий статус чата
         ChatState chatState = getChatState(chatId);
@@ -86,6 +94,7 @@ public class TelegramBotService {
         return message;
 
     }
+
 
     private void createResponseForcast(SendMessage message, Location location) {
 
