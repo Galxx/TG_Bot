@@ -1,0 +1,5 @@
+Команды:
+heroku container:login
+heroku create -a tgbotgb
+heroku container:push web -a tgbotgb
+heroku container:release web -a tgbotgb
