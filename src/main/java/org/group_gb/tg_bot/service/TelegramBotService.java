@@ -3,8 +3,10 @@ package org.group_gb.tg_bot.service;
 
 import org.group_gb.tg_bot.botState.ChatState;
 import org.group_gb.tg_bot.botState.ChatStateData;
+import org.group_gb.tg_bot.models.ChatSettings;
 import org.group_gb.tg_bot.models.User;
 import org.group_gb.tg_bot.yandexAPI.YandexAPIService;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -16,21 +18,26 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TelegramBotService {
+
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(TelegramBotService.class);
 
     @Autowired
     private UserService userService;
 
     private final ChatStateData chatStateData;
     private final YandexAPIService yandexAPIService;
+    private final ChatSettingsService chatSettingsService;
 
-
-    public TelegramBotService(ChatStateData chatStateData, YandexAPIService yandexAPIService) {
+    public TelegramBotService(ChatStateData chatStateData, YandexAPIService yandexAPIService, ChatSettingsService chatSettingsService) {
         this.chatStateData = chatStateData;
         this.yandexAPIService = yandexAPIService;
+        this.chatSettingsService = chatSettingsService;
     }
+
 
     public SendMessage handleUpdate(Update update) {
 
@@ -39,6 +46,8 @@ public class TelegramBotService {
         User user = new User();
         user.setChatId(chatId);
         message.setChatId(chatId.toString());
+
+        log.info(chatId.toString());
 
         //Проверим текущий статус чата
         ChatState chatState = getChatState(chatId);
@@ -59,20 +68,29 @@ public class TelegramBotService {
 
                 chatStateData.setChatState(chatId, chatState);
 
+                //Обработаем команды, которые не требуют изменения статуса
+                if (messageText.equals("Подписаться на рассылку о погоде")){
+                    createResponseSchedule(message,chatId,true);
+                    return message;
+                }else if(messageText.equals("Отписаться на рассылки о погоде")){
+                    createResponseSchedule(message,chatId,false);
+                    return message;
+                }
+
                 //Сформируем ответ в зависимости от состояния чата
                 if (chatState == ChatState.WAITING_COMMAND) {
-                    createResponseWAITING_COMMAND(message);
-                } else if (chatState == ChatState.WAITING_GEOMARK || chatState == ChatState.WAITING_RECOMMENDATION_GEOMARK) {
+                    createResponseWAITING_COMMAND(message, chatId);
+                } else if (chatState == ChatState.WAITING_GEOMARK) {
                     createResponseWAITING_GEOMARK(message);
                 }
 
             } else {
-                createResponseWAITING_COMMAND(message);
+                createResponseWAITING_COMMAND(message,chatId);
             }
         } else if (chatState == ChatState.WAITING_GEOMARK) {
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createResponseForcast(message, location);
+                createResponseForcast(message, location,chatId);
 
                 user.setLatitude(location.getLatitude());
                 user.setLongitude(location.getLongitude());
@@ -105,30 +123,17 @@ public class TelegramBotService {
 
     }
 
-    private void createResponseForcast(SendMessage message, Location location) {
-
-        //Долгота: 139.73967 Широта: 35.660577
-        //message.setText("Долгота: " + longitude.toString() + " Широта : "+latitude.toString());
+    private void createResponseForcast(SendMessage message, Location location,Long chatId) {
         Double lat = location.getLatitude();
         Double lon = location.getLongitude();
         message.setText(yandexAPIService.getForcast(lat, lon));
-
-        setMainMenu(message);
+        setMainMenu(message, chatId);
     }
 
-    private void createWeatherChangeRecommendation(SendMessage message, Location location) {
-
-        Double lat = location.getLatitude();
-        Double lon = location.getLongitude();
-        message.setText(yandexAPIService.getWeatherChangeRecommendation(lat, lon));
-
-        setMainMenu(message);
-    }
-
-    private void createResponseWAITING_COMMAND(SendMessage message) {
+    private void createResponseWAITING_COMMAND(SendMessage message,Long chatId) {
 
         message.setText("Ожидаю команды");
-        setMainMenu(message);
+        setMainMenu(message,chatId);
 
     }
 
@@ -137,6 +142,21 @@ public class TelegramBotService {
     }
 
 
+    private void createResponseSchedule(SendMessage message, Long chatId, boolean schedule){
+
+        ChatSettings chatSettings = new ChatSettings();
+        chatSettings.setChatId(chatId);
+        chatSettings.setMailing(schedule);
+        chatSettingsService.update(chatSettings);
+
+        if(schedule) {
+            message.setText("Вы успешно подписаны на рассылку");
+        }else{
+            message.setText("Вы успешно отписаны от рассылки");
+        }
+
+        setMainMenu(message,chatId);
+    }
 
     private ChatState getChatState(Long chatId) {
 
@@ -150,7 +170,7 @@ public class TelegramBotService {
 
     }
 
-    private void setMainMenu(SendMessage message) {
+    private void setMainMenu(SendMessage message, Long chatId) {
 
         //Установим keyboard
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
@@ -163,11 +183,21 @@ public class TelegramBotService {
 
         KeyboardRow row1 = new KeyboardRow();
         row1.add(new KeyboardButton("Будет ли сегодня дождь?"));
-        keyboard.add(row1);
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add(new KeyboardButton("Рекоммендации о перепадах"));
+        Optional<ChatSettings> chatSettings = chatSettingsService.findByChatIdAndMailingIsTrue(chatId);
+        if (chatSettings.isPresent()) {
+            row2.add(new KeyboardButton("Отписаться на рассылки о погоде"));
+        }else{
+            row2.add(new KeyboardButton("Подписаться на рассылку о погоде"));
+        }
+
+        keyboard.add(row1);
         keyboard.add(row2);
+
+        KeyboardRow row3 = new KeyboardRow();
+        row2.add(new KeyboardButton("Рекоммендации о перепадах"));
+        keyboard.add(row3);
         replyKeyboardMarkup.setKeyboard(keyboard);
 
         message.setReplyMarkup(replyKeyboardMarkup);
