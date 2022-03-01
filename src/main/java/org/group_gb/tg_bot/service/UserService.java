@@ -19,13 +19,16 @@ public class UserService {
     public void save(User user) {
         userRepository.save(user);
     }
-
+//
+//    public void saveOrUpdate(User user) {
+//        if (userRepository.existsByChatId(user.getChatId())>=1) {
+//            userRepository.update(user.getChatId(), user);
+//        } else save(user);
+//    }
 
     public List<User> findAllUsers() {
         return userRepository.findAll();
     }
-
-
 
 
 }

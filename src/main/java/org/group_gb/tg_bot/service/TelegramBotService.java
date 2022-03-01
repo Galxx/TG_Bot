@@ -53,6 +53,8 @@ public class TelegramBotService {
                     chatState = ChatState.WAITING_COMMAND;
                 } else if (messageText.equals("Будет ли сегодня дождь?")) {
                     chatState = ChatState.WAITING_GEOMARK;
+                } else if (messageText.equals("Рекоммендации о перепадах")) {
+                    chatState = ChatState.WAITING_RECOMMENDATION_GEOMARK;
                 }
 
                 chatStateData.setChatState(chatId, chatState);
@@ -60,7 +62,7 @@ public class TelegramBotService {
                 //Сформируем ответ в зависимости от состояния чата
                 if (chatState == ChatState.WAITING_COMMAND) {
                     createResponseWAITING_COMMAND(message);
-                } else if (chatState == ChatState.WAITING_GEOMARK) {
+                } else if (chatState == ChatState.WAITING_GEOMARK || chatState == ChatState.WAITING_RECOMMENDATION_GEOMARK) {
                     createResponseWAITING_GEOMARK(message);
                 }
 
@@ -77,7 +79,23 @@ public class TelegramBotService {
                 userService.save(user);
 
                 chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-            } else {
+            }
+            else {
+                createResponseWAITING_GEOMARK(message);
+            }
+
+        } else if (chatState == ChatState.WAITING_RECOMMENDATION_GEOMARK) {
+            if (update.hasMessage() && update.getMessage().hasLocation()) {
+                Location location = update.getMessage().getLocation();
+                createWeatherChangeRecommendation(message, location);
+
+                user.setLatitude(location.getLatitude());
+                user.setLongitude(location.getLongitude());
+                userService.save(user);
+
+                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
+            }
+            else {
                 createResponseWAITING_GEOMARK(message);
             }
 
@@ -94,6 +112,16 @@ public class TelegramBotService {
         Double lat = location.getLatitude();
         Double lon = location.getLongitude();
         message.setText(yandexAPIService.getForcast(lat, lon));
+
+        setMainMenu(message);
+    }
+
+    private void createWeatherChangeRecommendation(SendMessage message, Location location) {
+
+        Double lat = location.getLatitude();
+        Double lon = location.getLongitude();
+        message.setText(yandexAPIService.getWeatherChangeRecommendation(lat, lon));
+
         setMainMenu(message);
     }
 
@@ -105,10 +133,9 @@ public class TelegramBotService {
     }
 
     private void createResponseWAITING_GEOMARK(SendMessage message) {
-
         message.setText("Отправьте, пожалуйста, геометку");
-
     }
+
 
 
     private ChatState getChatState(Long chatId) {
@@ -137,6 +164,10 @@ public class TelegramBotService {
         KeyboardRow row1 = new KeyboardRow();
         row1.add(new KeyboardButton("Будет ли сегодня дождь?"));
         keyboard.add(row1);
+
+        KeyboardRow row2 = new KeyboardRow();
+        row2.add(new KeyboardButton("Рекоммендации о перепадах"));
+        keyboard.add(row2);
         replyKeyboardMarkup.setKeyboard(keyboard);
 
         message.setReplyMarkup(replyKeyboardMarkup);

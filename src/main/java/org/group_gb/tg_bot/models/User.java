@@ -23,6 +23,17 @@ public class User {
     @Column(name = "title_location")
     private String titleLocation;
 
+    @Column(name = "weather_recommendation")
+    private boolean weatherRecommendation;
+
+    public boolean isWeatherRecommendation() {
+        return weatherRecommendation;
+    }
+
+    public void setWeatherRecommendation(boolean weatherRecommendation) {
+        this.weatherRecommendation = weatherRecommendation;
+    }
+
     public long getId() {
         return id;
     }

@@ -8,6 +8,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @Service
 public class YandexAPIService {
 
@@ -58,5 +63,39 @@ public class YandexAPIService {
 
     }
 
+    public String getWeatherChangeRecommendation(Double lat, Double lon) {
+        String weatherChangeRecommendationText = "Рекоммендации о перепадах:\n";
+        String responseJson = webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/forecast")
+                        .queryParam("lat", lat.toString())
+                        .queryParam("lon", lon.toString())
+                        .queryParam("lang", "ru_RU")
+                        .queryParam("limit", "2")
+                        .queryParam("date", "true")
+                        .queryParam("hours", "false")
+                        .queryParam("extra", "false")
+                        .build())
+                .header("X-Yandex-API-Key", token)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
 
+
+        JsonObject jsonObjectAlt = JsonParser.parseString(responseJson).getAsJsonObject();
+        List<Integer> temperatures = new ArrayList<>();
+        for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray()) {
+            int dayTemperature = Integer.parseInt(item.getAsJsonObject().get("parts").getAsJsonObject().get("day_short").getAsJsonObject().get("temp").getAsString());
+            temperatures.add(dayTemperature);
+        }
+        int todaysTemperature = temperatures.get(0);
+        int tomorrowsTemperature = temperatures.get(1);
+
+        if (Math.abs(todaysTemperature-tomorrowsTemperature)>=9)
+            weatherChangeRecommendationText += "будет перепад, приобретите лекарство";
+        else weatherChangeRecommendationText +="перепадов не ожидается";
+
+        return weatherChangeRecommendationText;
+
+    }
 }
