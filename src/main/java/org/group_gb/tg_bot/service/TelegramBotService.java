@@ -82,6 +82,8 @@ public class TelegramBotService {
                     createResponseWAITING_COMMAND(message, chatId);
                 } else if (chatState == ChatState.WAITING_GEOMARK) {
                     createResponseWAITING_GEOMARK(message);
+                } else if(chatState == ChatState.WAITING_RECOMMENDATION_GEOMARK) {
+                    createResponseWAITING_GEOMARK(message);
                 }
 
             } else {
@@ -105,7 +107,7 @@ public class TelegramBotService {
         } else if (chatState == ChatState.WAITING_RECOMMENDATION_GEOMARK) {
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createWeatherChangeRecommendation(message, location);
+                createWeatherChangeRecommendation(message, location,chatId);
 
                 user.setLatitude(location.getLatitude());
                 user.setLongitude(location.getLongitude());
@@ -168,6 +170,17 @@ public class TelegramBotService {
 
         return chatState;
 
+    }
+
+    private void createWeatherChangeRecommendation(SendMessage message, Location location, Long chatId) {
+
+        //Долгота: 139.73967 Широта: 35.660577
+        //message.setText("Долгота: " + longitude.toString() + " Широта : "+latitude.toString());
+        Double lat = location.getLatitude();
+        Double lon = location.getLongitude();
+        message.setText(yandexAPIService.getWeatherChangeRecommendation(lat, lon));
+
+        setMainMenu(message,chatId);
     }
 
     private void setMainMenu(SendMessage message, Long chatId) {

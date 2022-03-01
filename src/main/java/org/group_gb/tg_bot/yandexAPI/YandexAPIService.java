@@ -64,6 +64,11 @@ public class YandexAPIService {
     }
 
     public String getWeatherChangeRecommendation(Double lat, Double lon) {
+        WebClient  webClient =  WebClient
+                .builder()
+                .baseUrl("https://api.weather.yandex.ru/v2")
+                .build();
+
         String weatherChangeRecommendationText = "Рекоммендации о перепадах:\n";
         String responseJson = webClient.get()
                 .uri(uriBuilder -> uriBuilder
