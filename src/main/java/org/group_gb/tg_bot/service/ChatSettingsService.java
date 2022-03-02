@@ -3,7 +3,7 @@ package org.group_gb.tg_bot.service;
 import org.group_gb.tg_bot.models.ChatSettings;
 import org.group_gb.tg_bot.repositories.ChatSettingsRepository;
 import org.springframework.stereotype.Service;
-
+import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +30,7 @@ public class ChatSettingsService {
         return chatSettingsRepository.findByChatIdAndMailingIsTrue(chatId);
     }
 
+    @Transactional
     public void update(ChatSettings chatSettings){
 
         chatSettingsRepository.deleteByChatId(chatSettings.getChatId());
