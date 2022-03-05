@@ -1,9 +1,9 @@
 package org.group_gb.tg_bot.service;
 
 import org.group_gb.tg_bot.TelegramBot;
-import org.group_gb.tg_bot.ipgeolocationAPI.IpgeolocationAPIService;
+import org.group_gb.tg_bot.ipgeolocation_api.IpgeolocationAPIService;
 import org.group_gb.tg_bot.models.User;
-import org.group_gb.tg_bot.yandexAPI.YandexAPIService;
+import org.group_gb.tg_bot.yandex_api.YandexAPIService;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
