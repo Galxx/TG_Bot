@@ -1,15 +1,18 @@
-package org.group_gb.tg_bot.botState;
+package org.group_gb.tg_bot.bot_state;
 
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Component
-public class ChatStateDataImpl implements ChatStateData{
+@Service
+public class ChatStateDataImpl implements ChatStateData {
 
-    private Map<Long, ChatState> chatsStates =  new ConcurrentHashMap<>();
+    private Map<Long, ChatState> chatsStates;
 
+    public ChatStateDataImpl() {
+        chatsStates = new ConcurrentHashMap<>();
+    }
 
     @Override
     public void setChatState(Long chatId, ChatState chatState) {

@@ -1,4 +1,4 @@
-package org.group_gb.tg_bot.ipgeolocationAPI;
+package org.group_gb.tg_bot.ipgeolocation_api;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;

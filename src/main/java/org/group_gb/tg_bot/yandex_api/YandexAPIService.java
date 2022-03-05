@@ -1,4 +1,4 @@
-package org.group_gb.tg_bot.yandexAPI;
+package org.group_gb.tg_bot.yandex_api;
 
 
 import com.google.gson.JsonElement;

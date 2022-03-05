@@ -1,4 +1,4 @@
-package org.group_gb.tg_bot.botState;
+package org.group_gb.tg_bot.bot_state;
 
 public enum ChatState {
     WAITING_COMMAND,

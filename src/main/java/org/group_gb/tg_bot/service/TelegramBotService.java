@@ -1,13 +1,12 @@
 package org.group_gb.tg_bot.service;
 
 
-import org.group_gb.tg_bot.botState.ChatState;
-import org.group_gb.tg_bot.botState.ChatStateData;
+import org.group_gb.tg_bot.bot_state.ChatState;
+import org.group_gb.tg_bot.bot_state.ChatStateData;
 import org.group_gb.tg_bot.models.ChatSettings;
 import org.group_gb.tg_bot.models.User;
-import org.group_gb.tg_bot.yandexAPI.YandexAPIService;
+import org.group_gb.tg_bot.yandex_api.YandexAPIService;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Location;
@@ -25,17 +24,19 @@ public class TelegramBotService {
 
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(TelegramBotService.class);
 
-    @Autowired
-    private UserService userService;
 
-    private final ChatStateData chatStateData;
+    private final UserService userService;
+
     private final YandexAPIService yandexAPIService;
     private final ChatSettingsService chatSettingsService;
+    private final ChatStateData chatStateData;
 
-    public TelegramBotService(ChatStateData chatStateData, YandexAPIService yandexAPIService, ChatSettingsService chatSettingsService) {
-        this.chatStateData = chatStateData;
+    public TelegramBotService( YandexAPIService yandexAPIService, ChatSettingsService chatSettingsService, ChatStateData chatStateData, UserService userService) {
         this.yandexAPIService = yandexAPIService;
         this.chatSettingsService = chatSettingsService;
+        this.chatStateData = chatStateData;
+        this.userService = userService;
+
     }
 
 
@@ -144,6 +145,7 @@ public class TelegramBotService {
     private ChatState getChatState(Long chatId) {
 
         ChatState chatState = chatStateData.getChatState(chatId);
+
         if (chatState == null) {
             chatState = ChatState.WAITING_COMMAND;
             chatStateData.setChatState(chatId, chatState);
@@ -182,5 +184,7 @@ public class TelegramBotService {
         message.setReplyMarkup(replyKeyboardMarkup);
 
     }
+
+
 
 }
