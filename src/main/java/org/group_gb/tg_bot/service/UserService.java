@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.objects.Location;
 
 import java.util.List;
@@ -19,16 +20,22 @@ public class UserService {
     public void save(User user) {
         userRepository.save(user);
     }
-//
-//    public void saveOrUpdate(User user) {
-//        if (userRepository.existsByChatId(user.getChatId())>=1) {
-//            userRepository.update(user.getChatId(), user);
-//        } else save(user);
-//    }
+
+    @Transactional
+    public void saveOrUpdate(User user) {
+        User user1 = userRepository.findByChatId(user.getChatId());
+        if (user1 != null) {
+            userRepository.deleteById(user1.getId());
+        }
+        save(user);
+    }
 
     public List<User> findAllUsers() {
         return userRepository.findAll();
     }
 
+    public User findByChatId(long chatId) {
+        return userRepository.findByChatId(chatId);
+    }
 
 }

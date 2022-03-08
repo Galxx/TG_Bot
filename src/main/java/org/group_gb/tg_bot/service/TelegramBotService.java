@@ -97,7 +97,7 @@ public class TelegramBotService {
 
                 user.setLatitude(location.getLatitude());
                 user.setLongitude(location.getLongitude());
-                userService.save(user);
+                userService.saveOrUpdate(user);
 
                 chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
             }
@@ -112,7 +112,7 @@ public class TelegramBotService {
 
                 user.setLatitude(location.getLatitude());
                 user.setLongitude(location.getLongitude());
-                userService.save(user);
+                userService.saveOrUpdate(user);
 
                 chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
             }
