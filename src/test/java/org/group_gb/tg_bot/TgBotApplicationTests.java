@@ -89,10 +89,10 @@ class TgBotApplicationTests {
     }
 
     @Test
-    @DisplayName("Будет ли сегодня дождь?")
+    @DisplayName("Погода на неделю")
     void HandleUpdateRainQuestion() {
         when(mockMessage.hasText()).thenReturn(true);
-        when(mockMessage.getText()).thenReturn("Будет ли сегодня дождь?");
+        when(mockMessage.getText()).thenReturn("Погода на неделю");
         assertEquals("Отправьте, пожалуйста, геометку", telegramBotService.handleUpdate(mockUpdate).getText());
     }
 
@@ -100,9 +100,9 @@ class TgBotApplicationTests {
     @DisplayName("Location")
     void HandleUpdateLocation() {
 
-        when(mockСhatStateData.getChatState(any(Long.class))).thenReturn(ChatState.WAITING_GEOMARK);
+        when(mockСhatStateData.getChatState(any(Long.class))).thenReturn(ChatState.WAITING_GEOMARK_NOW);
         when(mockMessage.hasLocation()).thenReturn(true);
-        when(yandexAPIService.getForcast(any(Double.class),any(Double.class))).thenReturn("Ваш прогноз");
+        when(yandexAPIService.getForcast(null,any(Double.class),any(Double.class))).thenReturn("Ваш прогноз");
         assertEquals("Ваш прогноз", telegramBotService.handleUpdate(mockUpdate).getText());
 
     }
