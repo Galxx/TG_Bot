@@ -41,4 +41,13 @@ public class ChatSettings{
     public void setMailing(boolean mailing) {
         this.mailing = mailing;
     }
+
+    @Override
+    public String toString() {
+        return "ChatSettings{" +
+                "id=" + id +
+                ", chatId=" + chatId +
+                ", mailing=" + mailing +
+                '}';
+    }
 }
