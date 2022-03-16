@@ -3,6 +3,7 @@ package org.group_gb.tg_bot.service;
 
 import org.group_gb.tg_bot.bot_state.ChatState;
 import org.group_gb.tg_bot.bot_state.ChatStateData;
+import org.group_gb.tg_bot.exceptions.YandexApiException;
 import org.group_gb.tg_bot.models.ChatSettings;
 import org.group_gb.tg_bot.models.User;
 import org.group_gb.tg_bot.yandex_api.YandexAPIService;
@@ -26,17 +27,15 @@ public class TelegramBotService {
 
 
     private final UserService userService;
-
     private final YandexAPIService yandexAPIService;
     private final ChatSettingsService chatSettingsService;
     private final ChatStateData chatStateData;
 
-    public TelegramBotService( YandexAPIService yandexAPIService, ChatSettingsService chatSettingsService, ChatStateData chatStateData, UserService userService) {
+    public TelegramBotService(YandexAPIService yandexAPIService, ChatSettingsService chatSettingsService, ChatStateData chatStateData, UserService userService) {
         this.yandexAPIService = yandexAPIService;
         this.chatSettingsService = chatSettingsService;
         this.chatStateData = chatStateData;
         this.userService = userService;
-
     }
 
 
@@ -44,12 +43,7 @@ public class TelegramBotService {
 
         SendMessage message = new SendMessage();
         Long chatId = update.getMessage().getChatId();
-        User user = new User();
-        user.setChatId(chatId);
         message.setChatId(chatId.toString());
-
-        log.info(chatId.toString());
-
         //Проверим текущий статус чата
         ChatState chatState = getChatState(chatId);
 
@@ -57,6 +51,8 @@ public class TelegramBotService {
             if (update.hasMessage() && update.getMessage().hasText()) {
 
                 String messageText = update.getMessage().getText();
+
+                log.info(messageText);
 
                 //Проверим новое сообщение, установим соответствующий статус
                 if (messageText.equals("/start")) {
@@ -68,6 +64,7 @@ public class TelegramBotService {
                 }
 
                 chatStateData.setChatState(chatId, chatState);
+                log.info("set chatState:" +  chatState);
 
                 //Обработаем команды, которые не требуют изменения статуса
                 if (messageText.equals("Подписаться на рассылку о погоде")){
@@ -95,11 +92,15 @@ public class TelegramBotService {
                 Location location = update.getMessage().getLocation();
                 createResponseForcast(message, location,chatId);
 
+                User user = new User();
+                user.setChatId(chatId);
                 user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());
+                user.setLongitude(location.getLongitude());          
+                log.info("Save user in base" + user);
                 userService.saveOrUpdate(user);
 
                 chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
+                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
             }
             else {
                 createResponseWAITING_GEOMARK(message);
@@ -110,16 +111,18 @@ public class TelegramBotService {
                 Location location = update.getMessage().getLocation();
                 createWeatherChangeRecommendation(message, location,chatId);
 
+                User user = new User();
+                user.setChatId(chatId);
                 user.setLatitude(location.getLatitude());
                 user.setLongitude(location.getLongitude());
+                log.info("Save user in base" + user);
                 userService.saveOrUpdate(user);
 
                 chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-            }
-            else {
+                log.info("set chatState:" +  ChatState.WAITING_COMMAND); 
+            } else {
                 createResponseWAITING_GEOMARK(message);
             }
-
         }
 
         return message;
@@ -127,9 +130,16 @@ public class TelegramBotService {
     }
 
     private void createResponseForcast(SendMessage message, Location location,Long chatId) {
+
         Double lat = location.getLatitude();
         Double lon = location.getLongitude();
-        message.setText(yandexAPIService.getForcast(lat, lon));
+        try {
+            message.setText(yandexAPIService.getForcast(lat, lon));
+        }catch (YandexApiException e){
+            message.setText("Ошибка при получении прогноза от Яндекса");
+            log.error(e.getMessage(),e);
+        }
+
         setMainMenu(message, chatId);
     }
 
@@ -150,6 +160,7 @@ public class TelegramBotService {
         ChatSettings chatSettings = new ChatSettings();
         chatSettings.setChatId(chatId);
         chatSettings.setMailing(schedule);
+        log.info("Update in base:" + chatSettings.toString());
         chatSettingsService.update(chatSettings);
 
         if(schedule) {

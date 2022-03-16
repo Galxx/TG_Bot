@@ -42,7 +42,7 @@ public class User {
         this.id = id;
     }
 
-    public long getChatId() {
+    public Long getChatId() {
         return chatId;
     }
 
@@ -72,5 +72,16 @@ public class User {
 
     public void setTitleLocation(String titleLocation) {
         this.titleLocation = titleLocation;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", chatId=" + chatId +
+                ", longitude=" + longitude +
+                ", latitude=" + latitude +
+                ", titleLocation='" + titleLocation + '\'' +
+                '}';
     }
 }
