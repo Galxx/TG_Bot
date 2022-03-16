@@ -29,8 +29,9 @@ public class YandexAPIService {
 
 
     public String getForcast(Integer daysForecast, Double lat, Double lon) {
+        Integer df;
 
-        WebClient  webClient =  WebClient
+        WebClient webClient = WebClient
                 .builder()
                 .baseUrl("https://api.weather.yandex.ru/v2")
                 .build();
@@ -40,7 +41,15 @@ public class YandexAPIService {
 
         try {
 
-            log.info( "Request Yandex param lat " + lat.toString() + "lon "+lon.toString());
+            if (daysForecast == null) {
+                df = 1;
+            } else if (daysForecast == -1) {
+                df = 1;
+            } else {
+                df = daysForecast;
+            }
+
+            log.info("Request Yandex param lat " + lat.toString() + "lon " + lon.toString());
 
             String responseJson = webClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -48,7 +57,7 @@ public class YandexAPIService {
                             .queryParam("lat", lat.toString())
                             .queryParam("lon", lon.toString())
                             .queryParam("lang", "ru_RU")
-                            .queryParam("limit", daysForecast)
+                            .queryParam("limit", df)
                             .queryParam("hours", "true")
                             .queryParam("extra", "true")
                             .build())
@@ -70,74 +79,88 @@ public class YandexAPIService {
 
             JsonObject jsonObjectAlt = JsonParser.parseString(responseJson).getAsJsonObject();
 
-            for (JsonElement item: jsonObjectAlt.get("forecasts").getAsJsonArray().get(0).getAsJsonObject().get("hours").getAsJsonArray()) {
+            if (daysForecast == null) {
+                JsonObject fact = jsonObjectAlt.getAsJsonObject("fact");
+                forcastText += "Сейчас: \n" + genForecastText(fact) + "\n" + "\n";
+            } else if (daysForecast == -1) {
+                forcastText += "Прогноз по часам:" + "\n";
+                for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray().get(0).getAsJsonObject().get("hours").getAsJsonArray()) {
+                    String hour = item.getAsJsonObject().get("hour").getAsString();
+                    String condition = item.getAsJsonObject().get("condition").getAsString();
+                    forcastText += (hour.length() == 1 ? "0" + hour : hour) + ":00 - " + condition + "\n";
+                }
+            } else {
+                for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray()) {
 
-                String hour = item.getAsJsonObject().get("hour").getAsString();
-                String condition = item.getAsJsonObject().get("condition").getAsString();
-                forcastText += (hour.length() ==1 ? "0"+hour :hour) + ":00 - " + condition +"\n";
+                    String date = item.getAsJsonObject().get("date").getAsString();
+                    JsonObject dayShort = item.getAsJsonObject().getAsJsonObject("parts").getAsJsonObject("day_short");
+                    JsonObject nightShort = item.getAsJsonObject().getAsJsonObject("parts").getAsJsonObject("night_short");
+                    forcastText += date + " \n" + "Ночью: \n" + genForecastText(nightShort) + "Днем: \n" + genForecastText(dayShort) + "\n" + "\n";
+                }
+
             }
-
             return forcastText;
-        }catch (RuntimeException e){
+
+        } catch (RuntimeException e) {
             throw new YandexApiException(e.getMessage());
         }
 
     }
 
-    public String getWeatherChangeRecommendation(Double lat, Double lon) {
-        WebClient  webClient =  WebClient
+    public String getWeatherChangeRecommendation(Integer daysForecast, Double lat, Double lon) {
+        WebClient webClient = WebClient
                 .builder()
                 .baseUrl("https://api.weather.yandex.ru/v2")
                 .build();
 
         String weatherChangeRecommendationText = "Рекоммендации о перепадах:\n";
-        String responseJson = webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/forecast")
-                        .queryParam("lat", lat.toString())
-                        .queryParam("lon", lon.toString())
-                        .queryParam("lang", "ru_RU")
 
-                        .queryParam("limit", daysForecast)
-                        .queryParam("hours", "false")
-                        .queryParam("extra", "true")
+        try {
+            log.info("Request Yandex param lat " + lat.toString() + "lon " + lon.toString());
 
-                        .queryParam("limit", "2")
-                        .queryParam("date", "true")
-                        .queryParam("hours", "false")
-                        .queryParam("extra", "false")
+            String responseJson = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/forecast")
+                            .queryParam("lat", lat.toString())
+                            .queryParam("lon", lon.toString())
+                            .queryParam("lang", "ru_RU")
 
-                        .build())
-                .header("X-Yandex-API-Key", token)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+                            .queryParam("limit", daysForecast)
+                            .queryParam("hours", "false")
+                            .queryParam("extra", "true")
 
-        //TODO 2 Сделать проверку на статус код сообщения
+                            .queryParam("limit", "2")
+                            .queryParam("date", "true")
+                            .queryParam("hours", "false")
+                            .queryParam("extra", "false")
 
-        JsonObject jsonObjectAlt = JsonParser.parseString(responseJson).getAsJsonObject();
+                            .build())
+                    .header("X-Yandex-API-Key", token)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
 
-        //JsonObject fact = jsonObjectAlt.getAsJsonObject("fact");
-        if (daysForecast == null) {
-            JsonObject fact = jsonObjectAlt.getAsJsonObject("fact");
-            forcastText += "Сейчас: \n" + genForecastText(fact) + "\n" + "\n";
 
+            JsonObject jsonObjectAlt = JsonParser.parseString(responseJson).getAsJsonObject();
+
+
+            List<Integer> temperatures = new ArrayList<>();
+            for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray()) {
+                int dayTemperature = Integer.parseInt(item.getAsJsonObject().get("parts").getAsJsonObject().get("day_short").getAsJsonObject().get("temp").getAsString());
+                temperatures.add(dayTemperature);
+            }
+            int todaysTemperature = temperatures.get(0);
+            int tomorrowsTemperature = temperatures.get(1);
+
+            if (Math.abs(todaysTemperature - tomorrowsTemperature) >= 9)
+                weatherChangeRecommendationText += "будет перепад, приобретите лекарство";
+            else weatherChangeRecommendationText += "перепадов не ожидается";
+
+            return weatherChangeRecommendationText;
+        } catch (RuntimeException e) {
+            throw new YandexApiException(e.getMessage());
         }
-        else {
-        for (JsonElement item: jsonObjectAlt.get("forecasts").getAsJsonArray()) {
 
-//           String hour = item.getAsJsonObject().get("hour").getAsString();
-//           String condition = item.getAsJsonObject().get("condition").getAsString();
-//
-//           forcastText += (hour.length() ==1 ? "0"+hour :hour) + ":00 - " + condition +"\n";
-
-            String date = item.getAsJsonObject().get("date").getAsString();
-            JsonObject dayShort = item.getAsJsonObject().getAsJsonObject("parts").getAsJsonObject("day_short");
-            JsonObject nightShort = item.getAsJsonObject().getAsJsonObject("parts").getAsJsonObject("night_short");
-            forcastText += date + " \n" + "Ночью: \n" + genForecastText(nightShort) + "Днем: \n" + genForecastText(dayShort) + "\n" + "\n";}
-
-        }
-        return forcastText;
     }
 
     public String genForecastText(JsonObject jsonObject) {
@@ -145,7 +168,7 @@ public class YandexAPIService {
         String conditionRus = "";
         String windDirRus = "";
         String condition = jsonObject.getAsJsonObject().get("condition").getAsString();
-        switch (condition){
+        switch (condition) {
             case "clear":
                 conditionRus = "ясно";
                 break;
@@ -210,7 +233,7 @@ public class YandexAPIService {
         String windSpeed = jsonObject.getAsJsonObject().get("wind_speed").getAsString();
         String windGust = jsonObject.getAsJsonObject().get("wind_gust").getAsString();
         String windDir = jsonObject.getAsJsonObject().get("wind_dir").getAsString();
-        switch (windDir){
+        switch (windDir) {
             case "nw":
                 windDirRus = " северо-западное";
                 break;
@@ -253,21 +276,6 @@ public class YandexAPIService {
 
 
 
-        JsonObject jsonObjectAlt = JsonParser.parseString(responseJson).getAsJsonObject();
-        List<Integer> temperatures = new ArrayList<>();
-        for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray()) {
-            int dayTemperature = Integer.parseInt(item.getAsJsonObject().get("parts").getAsJsonObject().get("day_short").getAsJsonObject().get("temp").getAsString());
-            temperatures.add(dayTemperature);
-        }
-        int todaysTemperature = temperatures.get(0);
-        int tomorrowsTemperature = temperatures.get(1);
 
-        if (Math.abs(todaysTemperature-tomorrowsTemperature)>=9)
-            weatherChangeRecommendationText += "будет перепад, приобретите лекарство";
-        else weatherChangeRecommendationText +="перепадов не ожидается";
 
-        return weatherChangeRecommendationText;
 
-    }
-
-}

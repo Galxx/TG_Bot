@@ -43,7 +43,7 @@ public class MailingService {
                 SendMessage message = new SendMessage();
                 Long chatId = user.getChatId();
                 message.setChatId(chatId.toString());
-                message.setText(yandexAPIService.getForcast(1,user.getLatitude(), user.getLongitude()));
+                message.setText(yandexAPIService.getForcast(-1,user.getLatitude(), user.getLongitude()));
                 telegramBot.sendMessage(message);
             }
         }catch (YandexApiException | IpgeolocationAPIException e){

@@ -55,12 +55,16 @@ public class TelegramBotService {
                 log.info(messageText);
 
                 //Проверим новое сообщение, установим соответствующий статус
-
                 switch (update.getMessage().getText()){
                     case "/start":
                         chatState = ChatState.WAITING_COMMAND;
                         break;
-
+                    case "Будет ли сегодня дождь?":
+                        chatState = ChatState.WAITING_GEOMARK;
+                        break;
+                    case "Рекоммендации о перепадах":
+                        chatState = ChatState.WAITING_RECOMMENDATION_GEOMARK;
+                        break;
                     case "Погода сейчас":
                         chatState = ChatState.WAITING_GEOMARK_NOW;
                         break;
@@ -76,37 +80,28 @@ public class TelegramBotService {
 
                 }
 
-                chatStateData.setChatState(chatId,chatState);
-
-                if (messageText.equals("/start")) {
-                    chatState = ChatState.WAITING_COMMAND;
-                } else if (messageText.equals("Будет ли сегодня дождь?")) {
-                    chatState = ChatState.WAITING_GEOMARK;
-                } else if (messageText.equals("Рекоммендации о перепадах")) {
-                    chatState = ChatState.WAITING_RECOMMENDATION_GEOMARK;
-                }
-
                 chatStateData.setChatState(chatId, chatState);
                 log.info("set chatState:" +  chatState);
 
-
-                                //Обработаем команды, которые не требуют изменения статуса
-                if (messageText.equals("Подписаться на рассылку о погоде")){
+                //Обработаем команды, которые не требуют изменения статуса
+                if (messageText.equals("Подписаться на рассылку")){
                     createResponseSchedule(message,chatId,true);
                     return message;
-                }else if(messageText.equals("Отписаться на рассылки о погоде")){
+                }else if(messageText.equals("Отписаться на рассылки")){
                     createResponseSchedule(message,chatId,false);
                     return message;
                 }
 
-
-
                 //Сформируем ответ в зависимости от состояния чата
-
-
                 switch (getChatState(chatId)){
                     case WAITING_COMMAND:
                         createResponseWAITING_COMMAND(message,chatId);
+                        break;
+                    case WAITING_GEOMARK:
+                        createResponseWAITING_GEOMARK(message);
+                        break;
+                    case  WAITING_RECOMMENDATION_GEOMARK:
+                        createResponseWAITING_GEOMARK(message);
                         break;
                     case WAITING_GEOMARK_NOW:
                         createResponseWAITING_GEOMARK(message);
@@ -120,237 +115,18 @@ public class TelegramBotService {
                     case WAITING_GEOMARK_WEEK:
                         createResponseWAITING_GEOMARK(message);
                         break;
-                    default: createResponseWAITING_GEOMARK(message);
+                    default:  createResponseWAITING_COMMAND(message,chatId);}
 
 
-                if (chatState == ChatState.WAITING_COMMAND) {
-                    createResponseWAITING_COMMAND(message, chatId);
-                } else if (chatState == ChatState.WAITING_GEOMARK) {
-                    createResponseWAITING_GEOMARK(message);
-                } else if(chatState == ChatState.WAITING_RECOMMENDATION_GEOMARK) {
-                    createResponseWAITING_GEOMARK(message);
-
-                }
-
-
-            }else{
-                createResponseWAITING_COMMAND(message,chatId);
-            }
-
-        }else
-            switch (getChatState(chatId)){
-                //Погода сейчас
-                case WAITING_GEOMARK_NOW:
-                {if (update.hasMessage() && update.getMessage().hasLocation()) {
-                    Location location = update.getMessage().getLocation();
-
-                    createResponseForcast(message, null, location, chatId);
-
-                    user.setLatitude(location.getLatitude());
-                    user.setLongitude(location.getLongitude());
-                    userService.save(user);
-
-                    chatStateData.setChatState(chatId,ChatState.WAITING_COMMAND);
-                }else{
-                    switch (update.getMessage().getText()){
-                        case "/start":
-                            chatState = ChatState.WAITING_COMMAND;
-                            break;
-                        case "Погода сейчас":
-                            chatState = ChatState.WAITING_GEOMARK_NOW;
-                            break;
-                        case "Погода сегодня":
-                            chatState = ChatState.WAITING_GEOMARK_TODAY;
-                            break;
-                        case "Погода на 2 дня":
-                            chatState = ChatState.WAITING_GEOMARK_2DAYS;
-                            break;
-                        case "Погода на неделю":
-                            chatState = ChatState.WAITING_GEOMARK_WEEK;
-                            break;
-                        default: createResponseWAITING_GEOMARK(message);
-
-                    }
-                    chatStateData.setChatState(chatId,chatState);
-                    createResponseWAITING_GEOMARK(message);
-                }
-                    break;
-                }
-                //Погода сегодня
-                case WAITING_GEOMARK_TODAY:
-                {if (update.hasMessage() && update.getMessage().hasLocation()) {
-                    Location location = update.getMessage().getLocation();
-                    createResponseForcast(message, 1, location, chatId);
-
-                    user.setLatitude(location.getLatitude());
-                    user.setLongitude(location.getLongitude());
-                    userService.save(user);
-
-                    chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-
-                }else{
-                    switch (update.getMessage().getText()){
-                        case "/start":
-                            chatState = ChatState.WAITING_COMMAND;
-                            break;
-                        case "Погода сейчас":
-                            chatState = ChatState.WAITING_GEOMARK_NOW;
-                            break;
-                        case "Погода сегодня":
-                            chatState = ChatState.WAITING_GEOMARK_TODAY;
-                            break;
-                        case "Погода на 2 дня":
-                            chatState = ChatState.WAITING_GEOMARK_2DAYS;
-                            break;
-                        case "Погода на неделю":
-                            chatState = ChatState.WAITING_GEOMARK_WEEK;
-                            break;
-                        default: createResponseWAITING_GEOMARK(message);
-
-                    }
-                    chatStateData.setChatState(chatId,chatState);
-                    createResponseWAITING_GEOMARK(message);
-                }
-                    break;
-                }
-                //Погода на 2 дня
-                case WAITING_GEOMARK_2DAYS:
-                {if (update.hasMessage() && update.getMessage().hasLocation()) {
-                    Location location = update.getMessage().getLocation();
-                    createResponseForcast(message, 2, location, chatId);
-
-                    user.setLatitude(location.getLatitude());
-                    user.setLongitude(location.getLongitude());
-                    userService.save(user);
-
-                    chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-
-                }else{
-                    switch (update.getMessage().getText()){
-                        case "/start":
-                            chatState = ChatState.WAITING_COMMAND;
-                            break;
-
-                        case "Погода сейчас":
-                            chatState = ChatState.WAITING_GEOMARK_NOW;
-                            break;
-                        case "Погода сегодня":
-                            chatState = ChatState.WAITING_GEOMARK_TODAY;
-                            break;
-                        case "Погода на 2 дня":
-                            chatState = ChatState.WAITING_GEOMARK_2DAYS;
-                            break;
-                        case "Погода на неделю":
-                            chatState = ChatState.WAITING_GEOMARK_WEEK;
-                            break;
-                        default: createResponseWAITING_GEOMARK(message);
-
-
-                    }
-                    chatStateData.setChatState(chatId,chatState);
-                    createResponseWAITING_GEOMARK(message);
-                }
-                    break;
-                }
-                //Погода на неделю
-                case WAITING_GEOMARK_WEEK:
-                {if (update.hasMessage() && update.getMessage().hasLocation()) {
-                    Location location = update.getMessage().getLocation();
-
-                    createResponseForcast(message, 7, location, chatId);
-
-                    user.setLatitude(location.getLatitude());
-                    user.setLongitude(location.getLongitude());
-                    userService.save(user);
-
-                    chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-
-                }else{
-                    switch (update.getMessage().getText()){
-                        case "/start":
-                            chatState = ChatState.WAITING_COMMAND;
-                            break;
-
-                        case "Погода сейчас":
-                            chatState = ChatState.WAITING_GEOMARK_NOW;
-                            break;
-                        case "Погода сегодня":
-                            chatState = ChatState.WAITING_GEOMARK_TODAY;
-                            break;
-                        case "Погода на 2 дня":
-                            chatState = ChatState.WAITING_GEOMARK_2DAYS;
-                            break;
-                        case "Погода на неделю":
-                            chatState = ChatState.WAITING_GEOMARK_WEEK;
-                            break;
-                        default: createResponseWAITING_GEOMARK(message);
-
-                    }
-                    chatStateData.setChatState(chatId,chatState);
-                    createResponseWAITING_GEOMARK(message);
-                }
-                    break;
-                }
-            }
-
-//        if (chatState == ChatState.WAITING_COMMAND) {
-//            if (update.hasMessage() && update.getMessage().hasText()) {
-//
-//                String messageText = update.getMessage().getText();
-//
-//                //Проверим новое сообщение, установим соответствующий статус
-//                if (messageText.equals("/start")) {
-//                    chatState = ChatState.WAITING_COMMAND;
-//                } else if (messageText.equals("Будет ли сегодня дождь?")) {
-//                    chatState = ChatState.WAITING_GEOMARK;
-//                }
-//
-//                chatStateData.setChatState(chatId, chatState);
-//
-//                //Обработаем команды, которые не требуют изменения статуса
-//                if (messageText.equals("Подписаться на рассылку о погоде")){
-//                    createResponseSchedule(message,chatId,true);
-//                    return message;
-//                }else if(messageText.equals("Отписаться на рассылки о погоде")){
-//                    createResponseSchedule(message,chatId,false);
-//                    return message;
-//                }
-//
-//                //Сформируем ответ в зависимости от состояния чата
-//                if (chatState == ChatState.WAITING_COMMAND) {
-//                    createResponseWAITING_COMMAND(message, chatId);
-//                } else if (chatState == ChatState.WAITING_GEOMARK) {
-//                    createResponseWAITING_GEOMARK(message);
-//                }
-//
-//            } else {
-//                createResponseWAITING_COMMAND(message,chatId);
-//            }
-//        } else if (chatState == ChatState.WAITING_GEOMARK) {
-//            if (update.hasMessage() && update.getMessage().hasLocation()) {
-//                Location location = update.getMessage().getLocation();
-//                createResponseForcast(message, location,chatId);
-//
-//                user.setLatitude(location.getLatitude());
-//                user.setLongitude(location.getLongitude());
-//                userService.save(user);
-//
-//                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-//            } else {
-//                createResponseWAITING_GEOMARK(message);
-//            }
-//
-//        }
-
-        } else if (chatState == ChatState.WAITING_GEOMARK) {
+        }} else if (chatState == ChatState.WAITING_GEOMARK) {
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createResponseForcast(message, location,chatId);
+                createResponseForcast(message, -1,location,chatId);
 
                 User user = new User();
                 user.setChatId(chatId);
                 user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());          
+                user.setLongitude(location.getLongitude());
                 log.info("Save user in base" + user);
                 userService.saveOrUpdate(user);
 
@@ -374,12 +150,83 @@ public class TelegramBotService {
                 userService.saveOrUpdate(user);
 
                 chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-                log.info("set chatState:" +  ChatState.WAITING_COMMAND); 
+                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+            } else {
+                createResponseWAITING_GEOMARK(message);
+            }
+        }else if (chatState == ChatState.WAITING_GEOMARK_NOW){ //Погода сейчас
+            if (update.hasMessage() && update.getMessage().hasLocation()) {
+                Location location = update.getMessage().getLocation();
+
+                createResponseForcast(message, null, location, chatId);
+
+                User user = new User();
+                user.setChatId(chatId);
+                user.setLatitude(location.getLatitude());
+                user.setLongitude(location.getLongitude());
+                log.info("Save user in base" + user);
+                userService.saveOrUpdate(user);
+
+                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
+                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+            } else {
+                createResponseWAITING_GEOMARK(message);
+            }
+        }else if (chatState == ChatState.WAITING_GEOMARK_TODAY){ //Погода сегодня
+            if (update.hasMessage() && update.getMessage().hasLocation()) {
+                Location location = update.getMessage().getLocation();
+                createResponseForcast(message, 1, location, chatId);
+
+                User user = new User();
+                user.setChatId(chatId);
+                user.setLatitude(location.getLatitude());
+                user.setLongitude(location.getLongitude());
+                log.info("Save user in base" + user);
+                userService.saveOrUpdate(user);
+
+                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
+                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+
+            } else {
+                createResponseWAITING_GEOMARK(message);
+            }
+        }else if (chatState == ChatState.WAITING_GEOMARK_2DAYS){ //Погода на 2 дня
+            if (update.hasMessage() && update.getMessage().hasLocation()) {
+                Location location = update.getMessage().getLocation();
+                createResponseForcast(message, 2, location, chatId);
+
+                User user = new User();
+                user.setChatId(chatId);
+                user.setLatitude(location.getLatitude());
+                user.setLongitude(location.getLongitude());
+                log.info("Save user in base" + user);
+                userService.saveOrUpdate(user);
+
+                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
+                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+
+            } else {
+                createResponseWAITING_GEOMARK(message);
+            }
+        }else if (chatState == ChatState.WAITING_GEOMARK_WEEK){ //Погода на неделю.
+            if (update.hasMessage() && update.getMessage().hasLocation()) {
+                Location location = update.getMessage().getLocation();
+                createResponseForcast(message, 7, location, chatId);
+
+                User user = new User();
+                user.setChatId(chatId);
+                user.setLatitude(location.getLatitude());
+                user.setLongitude(location.getLongitude());
+                log.info("Save user in base" + user);
+                userService.saveOrUpdate(user);
+
+                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
+                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+
             } else {
                 createResponseWAITING_GEOMARK(message);
             }
         }
-
 
         return message;
 
@@ -389,20 +236,12 @@ public class TelegramBotService {
     private void createResponseForcast(SendMessage message, Integer daysForecast, Location location,Long chatId) {
         Double lat = location.getLatitude();
         Double lon = location.getLongitude();
-        message.setText(yandexAPIService.getForcast(daysForecast, lat, lon));
-
-    private void createResponseForcast(SendMessage message, Location location,Long chatId) {
-
-        Double lat = location.getLatitude();
-        Double lon = location.getLongitude();
         try {
-            message.setText(yandexAPIService.getForcast(lat, lon));
-        }catch (YandexApiException e){
+            message.setText(yandexAPIService.getForcast(daysForecast, lat, lon));
+        } catch (YandexApiException e) {
             message.setText("Ошибка при получении прогноза от Яндекса");
-            log.error(e.getMessage(),e);
+            log.error(e.getMessage(), e);
         }
-
-
         setMainMenu(message, chatId);
     }
 
@@ -446,11 +285,9 @@ public class TelegramBotService {
 
     private void createWeatherChangeRecommendation(SendMessage message, Location location, Long chatId) {
 
-        //Долгота: 139.73967 Широта: 35.660577
-        //message.setText("Долгота: " + longitude.toString() + " Широта : "+latitude.toString());
         Double lat = location.getLatitude();
         Double lon = location.getLongitude();
-        message.setText(yandexAPIService.getWeatherChangeRecommendation(lat, lon));
+        message.setText(yandexAPIService.getWeatherChangeRecommendation(2,lat, lon));
 
         setMainMenu(message,chatId);
     }
@@ -460,64 +297,44 @@ public class TelegramBotService {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         replyKeyboardMarkup.setSelective(true);
         replyKeyboardMarkup.setResizeKeyboard(true);
-        //replyKeyboardMarkup.setOneTimeKeyboard(false);
         replyKeyboardMarkup.setOneTimeKeyboard(true);
 
         List<KeyboardRow> keyboard = new ArrayList<>();
 
         KeyboardRow row1 = new KeyboardRow();
-        row1.add(new KeyboardButton("Погода сейчас"));
-        row1.add(new KeyboardButton("Погода сегодня"));
+        row1.add(new KeyboardButton("Будет ли сегодня дождь?"));
+        row1.add(new KeyboardButton("Рекоммендации о перепадах"));
+        keyboard.add(row1);
 
         KeyboardRow row2 = new KeyboardRow();
-        row2.add(new KeyboardButton("Погода на 2 дня"));
-        row2.add(new KeyboardButton("Погода на неделю"));
+        row2.add(new KeyboardButton("Погода сейчас"));
+        row2.add(new KeyboardButton("Погода сегодня"));
 
-        KeyboardRow row3 = new KeyboardRow();
-        Optional<ChatSettings> chatSettings = chatSettingsService.findByChatIdAndMailingIsTrue(chatId);
-        if (chatSettings.isPresent()) {
-            row3.add(new KeyboardButton("Отписаться на рассылки о погоде"));
-        }else{
-            row3.add(new KeyboardButton("Подписаться на рассылку о погоде"));
-        }
-
-        keyboard.add(row1);
         keyboard.add(row2);
 
-
         KeyboardRow row3 = new KeyboardRow();
-        row2.add(new KeyboardButton("Рекоммендации о перепадах"));
-
+        row3.add(new KeyboardButton("Погода на 2 дня"));
+        row3.add(new KeyboardButton("Погода на неделю"));
         keyboard.add(row3);
+
+//        KeyboardRow row4 = new KeyboardRow();
+//        row4.add(new KeyboardButton("Рекоммендации о перепадах"));
+//        keyboard.add(row4);
+
+        KeyboardRow row5 = new KeyboardRow();
+        Optional<ChatSettings> chatSettings = chatSettingsService.findByChatIdAndMailingIsTrue(chatId);
+        if (chatSettings.isPresent()) {
+            row5.add(new KeyboardButton("Отписаться на рассылки"));
+        }else{
+            row5.add(new KeyboardButton("Подписаться на рассылку"));
+        }
+        keyboard.add(row5);
+
         replyKeyboardMarkup.setKeyboard(keyboard);
 
         message.setReplyMarkup(replyKeyboardMarkup);
 
-//        //Установим keyboard
-//        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-//        replyKeyboardMarkup.setSelective(true);
-//        replyKeyboardMarkup.setResizeKeyboard(true);
-//        //replyKeyboardMarkup.setOneTimeKeyboard(false);
-//        replyKeyboardMarkup.setOneTimeKeyboard(true);
-//
-//        List<KeyboardRow> keyboard = new ArrayList<>();
-//
-//        KeyboardRow row1 = new KeyboardRow();
-//        row1.add(new KeyboardButton("Будет ли сегодня дождь?"));
-//
-//        KeyboardRow row2 = new KeyboardRow();
-//        Optional<ChatSettings> chatSettings = chatSettingsService.findByChatIdAndMailingIsTrue(chatId);
-//        if (chatSettings.isPresent()) {
-//            row2.add(new KeyboardButton("Отписаться на рассылки о погоде"));
-//        }else{
-//            row2.add(new KeyboardButton("Подписаться на рассылку о погоде"));
-//        }
-//
-//        keyboard.add(row1);
-//        keyboard.add(row2);
-//        replyKeyboardMarkup.setKeyboard(keyboard);
-//
-//        message.setReplyMarkup(replyKeyboardMarkup);
+
 
     }
 }
