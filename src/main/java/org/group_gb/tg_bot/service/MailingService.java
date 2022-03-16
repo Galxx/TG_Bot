@@ -1,10 +1,13 @@
 package org.group_gb.tg_bot.service;
 
 import org.group_gb.tg_bot.TelegramBot;
+import org.group_gb.tg_bot.exceptions.IpgeolocationAPIException;
+import org.group_gb.tg_bot.exceptions.YandexApiException;
 import org.group_gb.tg_bot.ipgeolocation_api.IpgeolocationAPIService;
 import org.group_gb.tg_bot.models.User;
 import org.group_gb.tg_bot.yandex_api.YandexAPIService;
 import org.slf4j.Logger;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -30,18 +33,22 @@ public class MailingService {
     @Async("threadPoolTaskExecutor")
     public void sendMessage(User user){
 
-        log.info(""+user.getChatId());
+        MDC.put("chatId",user.getChatId().toString());
+        log.info("Send message");
 
-       int currentHour = ipgeolocationAPIService.getHour(user.getLatitude(),user.getLongitude());
+        try {
+            int currentHour = ipgeolocationAPIService.getHour(user.getLatitude(),user.getLongitude());
 
-       if (currentHour == mailingHour){
-        SendMessage message = new SendMessage();
-        Long chatId = user.getChatId();
-        message.setChatId(chatId.toString());
-        message.setText(yandexAPIService.getForcast(1, user.getLatitude(), user.getLongitude()));
-        telegramBot.sendMessage(message);
-       }
-
+            if (currentHour == mailingHour){
+                SendMessage message = new SendMessage();
+                Long chatId = user.getChatId();
+                message.setChatId(chatId.toString());
+                message.setText(yandexAPIService.getForcast(1,user.getLatitude(), user.getLongitude()));
+                telegramBot.sendMessage(message);
+            }
+        }catch (YandexApiException | IpgeolocationAPIException e){
+            log.error(e.getMessage(),e);
+        }
     }
 
 }
