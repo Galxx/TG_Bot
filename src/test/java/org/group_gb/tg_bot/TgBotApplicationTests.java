@@ -18,6 +18,9 @@ import org.telegram.telegrambots.meta.api.objects.Location;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+import java.util.Map;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
@@ -41,7 +44,10 @@ class TgBotApplicationTests {
 
     Update mockUpdate = mock(Update.class);
     Message mockMessage = mock(Message.class);
-    Location mockLocation = mock(Location.class);;
+    Location mockLocation = mock(Location.class);
+    Map<String,Integer> mapCommandGeoMark = mock(Map.class);
+    Optional<User> mockOptionalUser = null;
+    User mockUser = mock(User.class);
 
     @Test
     void contextLoads() {
@@ -50,6 +56,9 @@ class TgBotApplicationTests {
 
     @BeforeEach
     void init(){
+
+        mockOptionalUser = Optional.of(mockUser);
+
         when(mockUpdate.getMessage()).thenReturn(mockMessage);
         when(mockUpdate.hasMessage()).thenReturn(true);
 
@@ -59,10 +68,15 @@ class TgBotApplicationTests {
         when(mockLocation.getLatitude()).thenReturn(10D);
         when(mockLocation.getLongitude()).thenReturn(10D);
 
-        doNothing().when(mockChatSettingsService).update(any(ChatSettings.class));
-        doNothing().when(mockUserService).save(any(User.class));
-    }
+        when(mockUser.getLatitude()).thenReturn(123D);
+        when(mockUser.getLongitude()).thenReturn(123D);
 
+        doNothing().when(mockChatSettingsService).update(any(ChatSettings.class));
+
+        when(mockUserService.findByChatId(any(Long.class))).thenReturn(mockOptionalUser);
+        doNothing().when(mockUserService).saveOrUpdate(any(User.class));
+
+    }
 
     @Test
     @DisplayName("/start")
@@ -76,7 +90,7 @@ class TgBotApplicationTests {
     @DisplayName("Подписаться на рассылку о погоде")
     void HandleUpdateScheduleOn() {
         when(mockMessage.hasText()).thenReturn(true);
-        when(mockMessage.getText()).thenReturn("Подписаться на рассылку о погоде");
+        when(mockMessage.getText()).thenReturn("Подписаться на рассылку");
         assertEquals("Вы успешно подписаны на рассылку", telegramBotService.handleUpdate(mockUpdate).getText());
     }
 
@@ -84,25 +98,29 @@ class TgBotApplicationTests {
     @DisplayName("Отписаться на рассылки о погоде")
     void HandleUpdateScheduleOff() {
         when(mockMessage.hasText()).thenReturn(true);
-        when(mockMessage.getText()).thenReturn("Отписаться на рассылки о погоде");
+        when(mockMessage.getText()).thenReturn("Отписаться на рассылки");
         assertEquals("Вы успешно отписаны от рассылки", telegramBotService.handleUpdate(mockUpdate).getText());
     }
 
     @Test
     @DisplayName("Погода на неделю")
     void HandleUpdateRainQuestion() {
+        when(mockСhatStateData.getChatState(any(Long.class))).thenReturn(ChatState.WAITING_COMMAND);
         when(mockMessage.hasText()).thenReturn(true);
         when(mockMessage.getText()).thenReturn("Погода на неделю");
-        assertEquals("Отправьте, пожалуйста, геометку", telegramBotService.handleUpdate(mockUpdate).getText());
+        when(mapCommandGeoMark.get("Погода на неделю")).thenReturn(7);
+        when(yandexAPIService.getForcast(any(Integer.class),any(Double.class),any(Double.class))).thenReturn("Ваш прогноз");
+
+        assertEquals("Ваш прогноз", telegramBotService.handleUpdate(mockUpdate).getText());
     }
 
     @Test
     @DisplayName("Location")
     void HandleUpdateLocation() {
-
         when(mockСhatStateData.getChatState(any(Long.class))).thenReturn(ChatState.WAITING_GEOMARK_NOW);
         when(mockMessage.hasLocation()).thenReturn(true);
-        when(yandexAPIService.getForcast(null,any(Double.class),any(Double.class))).thenReturn("Ваш прогноз");
+        when(mapCommandGeoMark.get(any(String.class))).thenReturn(1);
+        when(yandexAPIService.getForcast(any(Integer.class),any(Double.class),any(Double.class))).thenReturn("Ваш прогноз");
         assertEquals("Ваш прогноз", telegramBotService.handleUpdate(mockUpdate).getText());
 
     }

@@ -7,14 +7,10 @@ import com.google.gson.JsonParser;
 import lombok.extern.slf4j.Slf4j;
 import org.group_gb.tg_bot.exceptions.YandexApiException;
 import org.springframework.beans.factory.annotation.Value;
-//import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @Slf4j
@@ -28,8 +24,8 @@ public class YandexAPIService {
     String token;
 
 
-    public String getForcast(Integer daysForecast, Double lat, Double lon) {
-        Integer df;
+    public String getForcast(Integer numberCommand, Double lat, Double lon) {
+        Integer daysForecast;
 
         WebClient webClient = WebClient
                 .builder()
@@ -41,12 +37,14 @@ public class YandexAPIService {
 
         try {
 
-            if (daysForecast == null) {
-                df = 1;
-            } else if (daysForecast == -1) {
-                df = 1;
+            if (numberCommand == -3) {
+                daysForecast = 1;
+            } else if (numberCommand == -1) {
+                daysForecast = 1;
+            }else if (numberCommand == -2){
+                daysForecast = 2;
             } else {
-                df = daysForecast;
+                daysForecast = numberCommand;
             }
 
             log.info("Request Yandex param lat " + lat.toString() + "lon " + lon.toString());
@@ -57,7 +55,7 @@ public class YandexAPIService {
                             .queryParam("lat", lat.toString())
                             .queryParam("lon", lon.toString())
                             .queryParam("lang", "ru_RU")
-                            .queryParam("limit", df)
+                            .queryParam("limit", daysForecast)
                             .queryParam("hours", "true")
                             .queryParam("extra", "true")
                             .build())
@@ -79,16 +77,31 @@ public class YandexAPIService {
 
             JsonObject jsonObjectAlt = JsonParser.parseString(responseJson).getAsJsonObject();
 
-            if (daysForecast == null) {
+            if (numberCommand == -3) {
                 JsonObject fact = jsonObjectAlt.getAsJsonObject("fact");
                 forcastText += "Сейчас: \n" + genForecastText(fact) + "\n" + "\n";
-            } else if (daysForecast == -1) {
+            } else if (numberCommand == -1) {
                 forcastText += "Прогноз по часам:" + "\n";
                 for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray().get(0).getAsJsonObject().get("hours").getAsJsonArray()) {
                     String hour = item.getAsJsonObject().get("hour").getAsString();
                     String condition = item.getAsJsonObject().get("condition").getAsString();
                     forcastText += (hour.length() == 1 ? "0" + hour : hour) + ":00 - " + condition + "\n";
                 }
+            } else if (numberCommand == -2) {
+                forcastText = "Рекоммендации о перепадах:\n";
+
+                List<Integer> temperatures = new ArrayList<>();
+                for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray()) {
+                    int dayTemperature = Integer.parseInt(item.getAsJsonObject().get("parts").getAsJsonObject().get("day_short").getAsJsonObject().get("temp").getAsString());
+                    temperatures.add(dayTemperature);
+                }
+                int todaysTemperature = temperatures.get(0);
+                int tomorrowsTemperature = temperatures.get(1);
+
+                if (Math.abs(todaysTemperature - tomorrowsTemperature) >= 9)
+                    forcastText += "будет перепад, приобретите лекарство";
+                else forcastText += "перепадов не ожидается";
+
             } else {
                 for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray()) {
 
@@ -99,64 +112,9 @@ public class YandexAPIService {
                 }
 
             }
+
             return forcastText;
 
-        } catch (RuntimeException e) {
-            throw new YandexApiException(e.getMessage());
-        }
-
-    }
-
-    public String getWeatherChangeRecommendation(Integer daysForecast, Double lat, Double lon) {
-        WebClient webClient = WebClient
-                .builder()
-                .baseUrl("https://api.weather.yandex.ru/v2")
-                .build();
-
-        String weatherChangeRecommendationText = "Рекоммендации о перепадах:\n";
-
-        try {
-            log.info("Request Yandex param lat " + lat.toString() + "lon " + lon.toString());
-
-            String responseJson = webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/forecast")
-                            .queryParam("lat", lat.toString())
-                            .queryParam("lon", lon.toString())
-                            .queryParam("lang", "ru_RU")
-
-                            .queryParam("limit", daysForecast)
-                            .queryParam("hours", "false")
-                            .queryParam("extra", "true")
-
-                            .queryParam("limit", "2")
-                            .queryParam("date", "true")
-                            .queryParam("hours", "false")
-                            .queryParam("extra", "false")
-
-                            .build())
-                    .header("X-Yandex-API-Key", token)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-
-
-            JsonObject jsonObjectAlt = JsonParser.parseString(responseJson).getAsJsonObject();
-
-
-            List<Integer> temperatures = new ArrayList<>();
-            for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray()) {
-                int dayTemperature = Integer.parseInt(item.getAsJsonObject().get("parts").getAsJsonObject().get("day_short").getAsJsonObject().get("temp").getAsString());
-                temperatures.add(dayTemperature);
-            }
-            int todaysTemperature = temperatures.get(0);
-            int tomorrowsTemperature = temperatures.get(1);
-
-            if (Math.abs(todaysTemperature - tomorrowsTemperature) >= 9)
-                weatherChangeRecommendationText += "будет перепад, приобретите лекарство";
-            else weatherChangeRecommendationText += "перепадов не ожидается";
-
-            return weatherChangeRecommendationText;
         } catch (RuntimeException e) {
             throw new YandexApiException(e.getMessage());
         }

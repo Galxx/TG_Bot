@@ -13,6 +13,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
+import java.util.Map;
+
 @Service
 public class MailingService {
 
@@ -23,11 +25,13 @@ public class MailingService {
     private final TelegramBot telegramBot;
     private final IpgeolocationAPIService ipgeolocationAPIService;
     private final YandexAPIService yandexAPIService;
+    private final Map<String,Integer> mapCommandGeoMark;
 
-    public MailingService(TelegramBot telegramBot, IpgeolocationAPIService ipgeolocationAPIService, YandexAPIService yandexAPIService) {
+    public MailingService(TelegramBot telegramBot, IpgeolocationAPIService ipgeolocationAPIService, YandexAPIService yandexAPIService,Map<String,Integer> mapCommandGeoMark) {
         this.telegramBot = telegramBot;
         this.ipgeolocationAPIService = ipgeolocationAPIService;
         this.yandexAPIService = yandexAPIService;
+        this.mapCommandGeoMark = mapCommandGeoMark;
     }
 
     @Async("threadPoolTaskExecutor")
@@ -43,7 +47,7 @@ public class MailingService {
                 SendMessage message = new SendMessage();
                 Long chatId = user.getChatId();
                 message.setChatId(chatId.toString());
-                message.setText(yandexAPIService.getForcast(-1,user.getLatitude(), user.getLongitude()));
+                message.setText(yandexAPIService.getForcast(mapCommandGeoMark.get("Будет ли сегодня дождь?"),user.getLatitude(), user.getLongitude()));
                 telegramBot.sendMessage(message);
             }
         }catch (YandexApiException | IpgeolocationAPIException e){

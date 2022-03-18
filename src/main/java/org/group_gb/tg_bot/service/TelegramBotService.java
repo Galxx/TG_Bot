@@ -16,28 +16,26 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMar
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class TelegramBotService {
 
     private static final Logger log = org.slf4j.LoggerFactory.getLogger(TelegramBotService.class);
 
-
     private final UserService userService;
     private final YandexAPIService yandexAPIService;
     private final ChatSettingsService chatSettingsService;
     private final ChatStateData chatStateData;
+    private final Map<String,Integer> mapCommandGeoMark;
 
-    public TelegramBotService(YandexAPIService yandexAPIService, ChatSettingsService chatSettingsService, ChatStateData chatStateData, UserService userService) {
+    public TelegramBotService(YandexAPIService yandexAPIService, ChatSettingsService chatSettingsService, ChatStateData chatStateData, UserService userService,Map<String,Integer> mapCommandGeoMark) {
         this.yandexAPIService = yandexAPIService;
         this.chatSettingsService = chatSettingsService;
         this.chatStateData = chatStateData;
         this.userService = userService;
+        this.mapCommandGeoMark = mapCommandGeoMark;
     }
-
 
     public SendMessage handleUpdate(Update update) {
 
@@ -51,87 +49,73 @@ public class TelegramBotService {
             if (update.hasMessage() && update.getMessage().hasText()) {
 
                 String messageText = update.getMessage().getText();
-
                 log.info(messageText);
 
-                //Проверим новое сообщение, установим соответствующий статус
-                switch (update.getMessage().getText()){
-                    case "/start":
-                        chatState = ChatState.WAITING_COMMAND;
-                        break;
-                    case "Будет ли сегодня дождь?":
-                        chatState = ChatState.WAITING_GEOMARK;
-                        break;
-                    case "Рекоммендации о перепадах":
-                        chatState = ChatState.WAITING_RECOMMENDATION_GEOMARK;
-                        break;
-                    case "Погода сейчас":
-                        chatState = ChatState.WAITING_GEOMARK_NOW;
-                        break;
-                    case "Погода сегодня":
-                        chatState = ChatState.WAITING_GEOMARK_TODAY;
-                        break;
-                    case "Погода на 2 дня":
-                        chatState = ChatState.WAITING_GEOMARK_2DAYS;
-                        break;
-                    case "Погода на неделю":
-                        chatState = ChatState.WAITING_GEOMARK_WEEK;
-                        break;
-
-                }
-
-                chatStateData.setChatState(chatId, chatState);
-                log.info("set chatState:" +  chatState);
-
-                //Обработаем команды, которые не требуют изменения статуса
-                if (messageText.equals("Подписаться на рассылку")){
+                if(messageText.equals("/start")){
+                    createResponseWAITING_COMMAND(message,chatId);
+                    return message;
+                }else if(messageText.equals("Подписаться на рассылку")){
                     createResponseSchedule(message,chatId,true);
                     return message;
-                }else if(messageText.equals("Отписаться на рассылки")){
-                    createResponseSchedule(message,chatId,false);
+                }else if(messageText.equals("Отписаться на рассылки")) {
+                    createResponseSchedule(message, chatId, false);
+                    return message;
+                }else if(messageText.equals("Удалить геометку")){
+                    userService.deleteByChatId(chatId);
+                    log.info("Delete geomark in base " + chatId);
+                    createResponseDeleteGeomark(message, chatId);
+                    return message;
+                }else if(mapCommandGeoMark.get(messageText) != null){
+                    Optional<User> optionalUser = userService.findByChatId(chatId);
+
+                    if(optionalUser.isPresent()){
+
+                        Double lon = optionalUser.get().getLongitude();
+                        Double lat = optionalUser.get().getLatitude();
+                        createResponseForcast(message,  mapCommandGeoMark.get(messageText), lat, lon, chatId);
+
+                        return message;
+
+                    }else{
+                        switch (messageText){
+
+                            case "Будет ли сегодня дождь?":
+                                chatState = ChatState.WAITING_GEOMARK;
+                                break;
+                            case "Рекоммендации о перепадах":
+                                chatState = ChatState.WAITING_RECOMMENDATION_GEOMARK;
+                                break;
+                            case "Погода сейчас":
+                                chatState = ChatState.WAITING_GEOMARK_NOW;
+                                break;
+                            case "Погода сегодня":
+                                chatState = ChatState.WAITING_GEOMARK_TODAY;
+                                break;
+                            case "Погода на 2 дня":
+                                chatState = ChatState.WAITING_GEOMARK_2DAYS;
+                                break;
+                            case "Погода на неделю":
+                                chatState = ChatState.WAITING_GEOMARK_WEEK;
+                                break;
+                        }
+
+                        chatStateData.setChatState(chatId, chatState);
+                        log.info("set chatState:" +  chatState);
+
+                        createResponseWAITING_GEOMARK(message);
+
+                        return message;
+
+                    }
+
+                }else{
+                    createResponseWAITING_COMMAND(message,chatId);
                     return message;
                 }
-
-                //Сформируем ответ в зависимости от состояния чата
-                switch (getChatState(chatId)){
-                    case WAITING_COMMAND:
-                        createResponseWAITING_COMMAND(message,chatId);
-                        break;
-                    case WAITING_GEOMARK:
-                        createResponseWAITING_GEOMARK(message);
-                        break;
-                    case  WAITING_RECOMMENDATION_GEOMARK:
-                        createResponseWAITING_GEOMARK(message);
-                        break;
-                    case WAITING_GEOMARK_NOW:
-                        createResponseWAITING_GEOMARK(message);
-                        break;
-                    case WAITING_GEOMARK_TODAY:
-                        createResponseWAITING_GEOMARK(message);
-                        break;
-                    case WAITING_GEOMARK_2DAYS:
-                        createResponseWAITING_GEOMARK(message);
-                        break;
-                    case WAITING_GEOMARK_WEEK:
-                        createResponseWAITING_GEOMARK(message);
-                        break;
-                    default:  createResponseWAITING_COMMAND(message,chatId);}
-
-
         }} else if (chatState == ChatState.WAITING_GEOMARK) {
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createResponseForcast(message, -1,location,chatId);
-
-                User user = new User();
-                user.setChatId(chatId);
-                user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());
-                log.info("Save user in base" + user);
-                userService.saveOrUpdate(user);
-
-                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+                handleUpdateGeomark(message,mapCommandGeoMark.get("Будет ли сегодня дождь?"), location,chatId);
             }
             else {
                 createResponseWAITING_GEOMARK(message);
@@ -140,89 +124,36 @@ public class TelegramBotService {
         } else if (chatState == ChatState.WAITING_RECOMMENDATION_GEOMARK) {
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createWeatherChangeRecommendation(message, location,chatId);
-
-                User user = new User();
-                user.setChatId(chatId);
-                user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());
-                log.info("Save user in base" + user);
-                userService.saveOrUpdate(user);
-
-                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+                handleUpdateGeomark(message,mapCommandGeoMark.get("Рекоммендации о перепадах"), location,chatId);
             } else {
                 createResponseWAITING_GEOMARK(message);
             }
         }else if (chatState == ChatState.WAITING_GEOMARK_NOW){ //Погода сейчас
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-
-                createResponseForcast(message, null, location, chatId);
-
-                User user = new User();
-                user.setChatId(chatId);
-                user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());
-                log.info("Save user in base" + user);
-                userService.saveOrUpdate(user);
-
-                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+                Integer i = mapCommandGeoMark.get("Погода сейчас");
+                handleUpdateGeomark(message,i, location,chatId);
             } else {
                 createResponseWAITING_GEOMARK(message);
             }
         }else if (chatState == ChatState.WAITING_GEOMARK_TODAY){ //Погода сегодня
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createResponseForcast(message, 1, location, chatId);
-
-                User user = new User();
-                user.setChatId(chatId);
-                user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());
-                log.info("Save user in base" + user);
-                userService.saveOrUpdate(user);
-
-                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
-
+                handleUpdateGeomark(message,mapCommandGeoMark.get("Погода сегодня"), location,chatId);
             } else {
                 createResponseWAITING_GEOMARK(message);
             }
         }else if (chatState == ChatState.WAITING_GEOMARK_2DAYS){ //Погода на 2 дня
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createResponseForcast(message, 2, location, chatId);
-
-                User user = new User();
-                user.setChatId(chatId);
-                user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());
-                log.info("Save user in base" + user);
-                userService.saveOrUpdate(user);
-
-                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
-
+                handleUpdateGeomark(message,mapCommandGeoMark.get("Погода на 2 дня"), location,chatId);
             } else {
                 createResponseWAITING_GEOMARK(message);
             }
         }else if (chatState == ChatState.WAITING_GEOMARK_WEEK){ //Погода на неделю.
             if (update.hasMessage() && update.getMessage().hasLocation()) {
                 Location location = update.getMessage().getLocation();
-                createResponseForcast(message, 7, location, chatId);
-
-                User user = new User();
-                user.setChatId(chatId);
-                user.setLatitude(location.getLatitude());
-                user.setLongitude(location.getLongitude());
-                log.info("Save user in base" + user);
-                userService.saveOrUpdate(user);
-
-                chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
-                log.info("set chatState:" +  ChatState.WAITING_COMMAND);
-
+                handleUpdateGeomark(message,mapCommandGeoMark.get("Погода на неделю"), location,chatId);
             } else {
                 createResponseWAITING_GEOMARK(message);
             }
@@ -232,12 +163,27 @@ public class TelegramBotService {
 
     }
 
+    private  void handleUpdateGeomark(SendMessage message, Integer numberCommand, Location location,Long chatId){
 
-    private void createResponseForcast(SendMessage message, Integer daysForecast, Location location,Long chatId) {
         Double lat = location.getLatitude();
         Double lon = location.getLongitude();
+
+        User user = new User();
+        user.setChatId(chatId);
+        user.setLatitude(lat);
+        user.setLongitude(lon);
+        userService.saveOrUpdate(user);
+        log.info("Save user in base" + user);
+
+        createResponseForcast(message,  numberCommand, lat, lon, chatId);
+
+        chatStateData.setChatState(chatId, ChatState.WAITING_COMMAND);
+        log.info("set chatState:" +  ChatState.WAITING_COMMAND);
+    }
+
+    private void createResponseForcast(SendMessage message, Integer numberCommand, Double lat, Double lon,Long chatId) {
         try {
-            message.setText(yandexAPIService.getForcast(daysForecast, lat, lon));
+            message.setText(yandexAPIService.getForcast(numberCommand, lat, lon));
         } catch (YandexApiException e) {
             message.setText("Ошибка при получении прогноза от Яндекса");
             log.error(e.getMessage(), e);
@@ -254,12 +200,11 @@ public class TelegramBotService {
         message.setText("Отправьте, пожалуйста, геометку");
     }
 
-
     private void createResponseSchedule(SendMessage message, Long chatId, boolean schedule){
         ChatSettings chatSettings = new ChatSettings();
         chatSettings.setChatId(chatId);
         chatSettings.setMailing(schedule);
-        log.info("Update in base:" + chatSettings.toString());
+        log.info("Update in base:" + chatSettings);
         chatSettingsService.update(chatSettings);
 
         if(schedule) {
@@ -273,23 +218,11 @@ public class TelegramBotService {
 
     private ChatState getChatState(Long chatId) {
         ChatState chatState = chatStateData.getChatState(chatId);
-
         if (chatState == null) {
             chatState = ChatState.WAITING_COMMAND;
             chatStateData.setChatState(chatId, chatState);
         }
-
         return chatState;
-
-    }
-
-    private void createWeatherChangeRecommendation(SendMessage message, Location location, Long chatId) {
-
-        Double lat = location.getLatitude();
-        Double lon = location.getLongitude();
-        message.setText(yandexAPIService.getWeatherChangeRecommendation(2,lat, lon));
-
-        setMainMenu(message,chatId);
     }
 
     private void setMainMenu(SendMessage message, Long chatId) {
@@ -317,24 +250,27 @@ public class TelegramBotService {
         row3.add(new KeyboardButton("Погода на неделю"));
         keyboard.add(row3);
 
-//        KeyboardRow row4 = new KeyboardRow();
-//        row4.add(new KeyboardButton("Рекоммендации о перепадах"));
-//        keyboard.add(row4);
-
         KeyboardRow row5 = new KeyboardRow();
-        Optional<ChatSettings> chatSettings = chatSettingsService.findByChatIdAndMailingIsTrue(chatId);
-        if (chatSettings.isPresent()) {
+        if (chatSettingsService.findByChatIdAndMailingIsTrue(chatId).isPresent()) {
             row5.add(new KeyboardButton("Отписаться на рассылки"));
         }else{
             row5.add(new KeyboardButton("Подписаться на рассылку"));
         }
+
+        if (userService.findByChatId(chatId).isPresent()){
+            row5.add(new KeyboardButton("Удалить геометку"));
+        }
+
         keyboard.add(row5);
 
         replyKeyboardMarkup.setKeyboard(keyboard);
 
         message.setReplyMarkup(replyKeyboardMarkup);
 
+    }
 
-
+    private void createResponseDeleteGeomark(SendMessage message, Long chatId) {
+        message.setText("Геометка удалена");
+        setMainMenu(message,chatId);
     }
 }
