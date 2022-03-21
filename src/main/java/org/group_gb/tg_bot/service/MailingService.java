@@ -47,7 +47,7 @@ public class MailingService {
                 SendMessage message = new SendMessage();
                 Long chatId = user.getChatId();
                 message.setChatId(chatId.toString());
-                message.setText(yandexAPIService.getForcast(mapCommandGeoMark.get("Будет ли сегодня дождь?"),user.getLatitude(), user.getLongitude()));
+                message.setText(yandexAPIService.getForcast(mapCommandGeoMark.get("Прогноз по часам"),user.getLatitude(), user.getLongitude()));
                 telegramBot.sendMessage(message);
             }
         }catch (YandexApiException | IpgeolocationAPIException e){

@@ -81,11 +81,11 @@ public class YandexAPIService {
                 JsonObject fact = jsonObjectAlt.getAsJsonObject("fact");
                 forcastText += "Сейчас: \n" + genForecastText(fact) + "\n" + "\n";
             } else if (numberCommand == -1) {
-                forcastText += "Прогноз по часам:" + "\n";
+                forcastText += "Прогноз по часам на сегодня\n\n";
                 for (JsonElement item : jsonObjectAlt.get("forecasts").getAsJsonArray().get(0).getAsJsonObject().get("hours").getAsJsonArray()) {
                     String hour = item.getAsJsonObject().get("hour").getAsString();
-                    String condition = item.getAsJsonObject().get("condition").getAsString();
-                    forcastText += (hour.length() == 1 ? "0" + hour : hour) + ":00 - " + condition + "\n";
+                    String hourForcast = genForecastTextHourly(item.getAsJsonObject());
+                    forcastText += (hour.length() == 1 ? "0" + hour : hour) + ":00 - " + hourForcast + "\n";
                 }
             } else if (numberCommand == -2) {
                 forcastText = "Рекоммендации о перепадах:\n";
@@ -118,7 +118,6 @@ public class YandexAPIService {
         } catch (RuntimeException e) {
             throw new YandexApiException(e.getMessage());
         }
-
     }
 
     public String genForecastText(JsonObject jsonObject) {
@@ -228,6 +227,78 @@ public class YandexAPIService {
                 "Температура воздуха " + temp + "°C(ощущается как " + feelsLike + "°C) \n" +
                 "Направление ветра " + windDirRus + ", скорость " + windSpeed + "м/c, порывы " + windGust + "м/c \n" +
                 "Атмосферное давление " + pressureMM + "мм рт.ст., влажность воздуха " + humidity + "% \n";
+        return genText;
+    }
+
+    public String genForecastTextHourly(JsonObject jsonObject) {
+        String genText = " ";
+        String conditionRus = "";
+        String condition = jsonObject.getAsJsonObject().get("condition").getAsString();
+        switch (condition) {
+            case "clear":
+                conditionRus = "ясно";
+                break;
+            case "partly-cloudy":
+                conditionRus = "малооблачно";
+                break;
+            case "cloudy":
+                conditionRus = "облачно с прояснениями";
+                break;
+            case "overcast":
+                conditionRus = "пасмурно";
+                break;
+            case "drizzle":
+                conditionRus = "морось";
+                break;
+            case "light-rain":
+                conditionRus = "небольшой дождь";
+                break;
+            case "rain":
+                conditionRus = "дождь";
+                break;
+            case "moderate-rain":
+                conditionRus = "умеренно сильный дождь";
+                break;
+            case "heavy-rain":
+                conditionRus = "сильный дождь";
+                break;
+            case "continuous-heavy-rain":
+                conditionRus = "длительный сильный дождь";
+                break;
+            case "showers":
+                conditionRus = "ливень";
+                break;
+            case "wet-snow":
+                conditionRus = "дождь со снегом";
+                break;
+            case "light-snow":
+                conditionRus = "небольшой снег";
+                break;
+            case "snow":
+                conditionRus = "снег";
+                break;
+            case "snow-showers":
+                conditionRus = "снегопад";
+                break;
+            case "hail":
+                conditionRus = "град";
+                break;
+            case "thunderstorm":
+                conditionRus = "гроза";
+                break;
+            case "thunderstorm-with-rain":
+                conditionRus = "дождь с грозой";
+                break;
+            case "thunderstorm-with-hail":
+                conditionRus = "дождь с градом";
+                break;
+        }
+
+        String temp = jsonObject.getAsJsonObject().get("temp").getAsString();
+        String feelsLike = jsonObject.getAsJsonObject().get("feels_like").getAsString();
+        genText = conditionRus + " \n" +
+                "Температура воздуха " + temp + "°C(ощущается как " + feelsLike + "°C) \n";
+
         return genText;
     }
 }
