@@ -16,7 +16,7 @@ public class CommandConfig {
         Map<String,Integer> mapCommandGeoMark = new HashMap<>();
         mapCommandGeoMark.put("Погода сейчас",-3);
         mapCommandGeoMark.put("Рекоммендации о перепадах",-2);
-        mapCommandGeoMark.put("Будет ли сегодня дождь?",-1);
+        mapCommandGeoMark.put("Прогноз по часам",-1);
         mapCommandGeoMark.put("Погода сегодня",1);
         mapCommandGeoMark.put("Погода на 2 дня",2);
         mapCommandGeoMark.put("Погода на неделю",7);

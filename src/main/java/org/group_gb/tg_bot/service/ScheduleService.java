@@ -22,6 +22,7 @@ public class ScheduleService {
         this.mailingService = mailingService;
     }
 
+    //@Scheduled(fixedRateString = "${pingtask.period}")
     @Scheduled(cron = "@hourly")
     public void sendMessages() {
 
@@ -32,6 +33,5 @@ public class ScheduleService {
         for (User user:users) {
             mailingService.sendMessage(user);
         }
-
     }
 }

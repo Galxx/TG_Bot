@@ -235,7 +235,7 @@ public class TelegramBotService {
         List<KeyboardRow> keyboard = new ArrayList<>();
 
         KeyboardRow row1 = new KeyboardRow();
-        row1.add(new KeyboardButton("Будет ли сегодня дождь?"));
+        row1.add(new KeyboardButton("Прогноз по часам"));
         row1.add(new KeyboardButton("Рекоммендации о перепадах"));
         keyboard.add(row1);
 
